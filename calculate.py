@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 from trad import sgs_trad
 from models import Params, Covar, Neigh
 
-covar = Covar(model='gaussian',
+covar = Covar(model='exponential',
               range0=[10, 10],
               azimuth=[0],
               c0=1,
@@ -20,7 +20,7 @@ params = Params(nx=100,
                 neigh=neigh
                 )
 
-Rest = sgs_trad(params, debug=False)
+Rest = sgs_trad(params, debug=False, nnc=True)
 c = plt.imshow(Rest)
 plt.xlabel('x')
 plt.ylabel('y')

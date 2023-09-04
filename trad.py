@@ -7,7 +7,7 @@ from scipy.spatial.distance import pdist
 from models import Params
 
 
-def sgs_trad(params: Params, debug=False):
+def sgs_trad(params: Params, debug=False, nnc=False):
     # creating grid
     X = np.linspace(1, params.nx, num=params.nx)
     Y = np.linspace(1, params.ny, num=params.ny)
@@ -110,7 +110,6 @@ def sgs_trad(params: Params, debug=False):
                     U_from_file.append([float(x) for x in line.split()])
             U = np.array(U_from_file).flatten()
             U = U.reshape((params.nx, params.ny))
-            print(U)
             U = U.flatten()
 
         #print(U)
@@ -130,24 +129,34 @@ def sgs_trad(params: Params, debug=False):
                 NEIGH_2 = np.zeros((params.neigh.nb, 1)) + np.nan
                 for nn in range(1, np.shape(ss_XY_s)[0]):
                     ijt = XY_i[i_pt] + ss_XY_s[nn]
-                    #print(ijt)
-                    if ijt[0] > 0 and ijt[1] > 0 and ijt[0] <= params.nx and ijt[1] <= params.ny:
-                        #print(Path[int(ijt[1])-1, int(ijt[0])-1])
-                        #print(i_pt)
-                        if Path[int(ijt[0])-1, int(ijt[1])-1] < i_pt:
-                            #print(ijt)
-                            #print(Path[int(ijt[1])-1, int(ijt[0])-1])
-                            if i_pt == 13:
-                                ...
-                                #print(ijt)
-                                #print(Path[int(ijt[1])-1, int(ijt[0])-1])
-                            #print('-------------------')
+                    ijt -= 1
+                    if nnc is True:
+
+                        if ijt[0] <= -1:
+                            ijt[0] += params.nx
+                        if ijt[1] <= -1:
+                            ijt[1] += params.ny
+                        if ijt[0] >= params.nx:
+                            ijt[0] -= params.nx
+                        if ijt[1] >= params.ny:
+                            ijt[1] -= params.ny
+
+                        if Path[int(ijt[0]), int(ijt[1])] < i_pt:
                             neigh_nn[n] = nn
-                            NEIGH_1[n] = ijt[1]
-                            NEIGH_2[n] = ijt[0]
+                            NEIGH_1[n] = ijt[1] + 1
+                            NEIGH_2[n] = ijt[0] + 1
                             n += 1
                             if n >= params.neigh.nb:
                                 break
+                    else:
+                        if ijt[0] > -1 and ijt[1] > -1 and ijt[0] < params.nx and ijt[1] < params.ny:
+                            if Path[int(ijt[0]), int(ijt[1])] < i_pt:
+                                neigh_nn[n] = nn
+                                NEIGH_1[n] = ijt[1]+1
+                                NEIGH_2[n] = ijt[0]+1
+                                n += 1
+                                if n >= params.neigh.nb:
+                                    break
                 #print(n)
                 if n == 0:
                     ...
@@ -171,8 +180,6 @@ def sgs_trad(params: Params, debug=False):
                         ab_C = [[1]]
                     else:
                         a0_C = np.transpose(C[:n])
-                        #if i_pt < 10:
-                        #    print(n, C, a0_C)
                         ab_C = np.diag(np.ones(n))*0.5
                         low_t = np.tril(np.ones((n, n)), -1)
                         n_next = n
