@@ -1,9 +1,7 @@
-import random
-
 import numpy as np
-from typing import Type
 from math import ceil, sqrt
-from scipy.spatial.distance import pdist
+from scipy.spatial.distance import pdist, squareform
+from scipy.sparse import kron
 from models import Params
 
 
@@ -18,15 +16,12 @@ def sgs_trad(params: Params, debug=False, nnc=False):
     # spiral search of neighbours
     x = ceil(min(params.covar.range[1]*params.neigh.wradius, params.nx))
     y = ceil(min(params.covar.range[0]*params.neigh.wradius, params.ny))
-    #print(x, y)
 
     ss_Y = np.linspace(-y, y, num=2*y+1)
     ss_X = np.linspace(-x, x, num=2*x+1)
     ss_X, ss_Y = np.meshgrid(ss_X, ss_Y)
-    #print(ss_X, ss_Y)
 
     ss_dist = np.sqrt((ss_X/params.covar.range[0])**2 + (ss_Y/params.covar.range[1])**2)
-    #print(ss_dist)
 
     ss_id_1 = ss_dist.flatten()
     ss_id_1 = np.argwhere(ss_id_1 <= params.neigh.wradius)
@@ -43,24 +38,23 @@ def sgs_trad(params: Params, debug=False, nnc=False):
 
     s = ss_dist.flatten()[ss_id_1]
     ss_id_2 = np.asarray(sorted(range(len(s)), key=lambda k: s[k]))
-    #print(np.shape(ss_id_1), np.shape(ss_id_2))
-    #print(ss_id_1)
-    #print(ss_id_2)
-    #print(ss_X.flatten()[1])
-    #print(ss_X.flatten())
-    #print(ss_id_1[ss_id_2])
-    #print(ss_X, ss_Y)
     ss_X_s = np.transpose(ss_X).flatten()[ss_id_1[ss_id_2]]
     ss_Y_s = np.transpose(ss_Y).flatten()[ss_id_1[ss_id_2]]
-    #print(ss_X_s)
-    #print(ss_Y_s)
     ss_n = len(ss_X_s)
-    print(ss_n)
     ss_scale_s = np.ones(len(ss_id_2))
 
+    # lookup table
+    if params.neigh.lookup:
+        a0_h = np.zeros((len(ss_X_s), 2))
+        ss_vec = np.zeros((len(ss_X_s), 2))
+        for i in range(np.shape(a0_h)[0]):
+            ss_vec[i] = [ss_X_s[i], ss_Y_s[i]]
+        a0_h = np.sqrt(np.sum(np.matmul(ss_vec, params.covar.cx)**2, axis=1))
+        ab_h = squareform(pdist(np.matmul(ss_vec, params.covar.cx)))
 
-    # covariance lookup table
-    ...
+        ss_a0_C = np.kron(params.covar.g(a0_h), params.covar.c0)
+        ss_ab_C = kron(params.covar.g(ab_h), params.covar.c0).toarray()
+
 
     # realization loop
     Rest = np.zeros((params.nx, params.ny, params.m)) + np.nan
@@ -73,7 +67,6 @@ def sgs_trad(params: Params, debug=False, nnc=False):
         path = np.zeros((params.nx*params.ny, 1)) + np.nan
         np.random.seed(params.seed_path)
         id = np.argwhere(np.isnan(Path.flatten())).T[0]
-        #print(id)
         path = id[np.random.permutation(len(id))]
 
         if debug:
@@ -83,11 +76,8 @@ def sgs_trad(params: Params, debug=False, nnc=False):
                     path_from_file.append([int(x) for x in line.split()])
             path = np.array(path_from_file).flatten()
 
-        #print(path)
         Path[path] = range(len(id))
         Path = Path.reshape((params.nx, params.ny))
-        #Path = np.transpose(Path)
-        #print(Path)
         ds = 1
         nb = [len(id)]
         start = [0, nb]
@@ -97,8 +87,6 @@ def sgs_trad(params: Params, debug=False, nnc=False):
         XY_i = np.zeros((len(Xf), 2))
         for i in range(np.shape(XY_i)[0]):
             XY_i[i] = [Xf[path[i]], Yf[path[i]]]
-        #XY_i = [Y.flatten()[path], X.flatten()[path]]
-        #print(XY_i)
 
         np.random.seed(params.seed_U)
         U = np.random.randn(params.nx, params.ny).flatten()
@@ -112,15 +100,15 @@ def sgs_trad(params: Params, debug=False, nnc=False):
             U = U.reshape((params.nx, params.ny))
             U = U.flatten()
 
-        #print(U)
-        #print(Path[25, 49])
-        #print(path)
         for i_scale in range(sn):
             ss_id = np.argwhere(ss_scale_s <= i_scale+1).T[0]
             ss_XY_s = np.zeros((len(ss_Y_s), 2))
             for i in range(np.shape(ss_XY_s)[0]):
                 ss_XY_s[i] = [ss_X_s[ss_id[i]], ss_Y_s[ss_id[i]]]
-            #print(ss_XY_s)
+
+            if params.neigh.lookup:
+                ss_a0_C_s = ss_a0_C[ss_id]
+                ss_ab_C_s = ss_ab_C[ss_id]
 
             for i_pt in range(start[i_scale], nb[i_scale]+start[i_scale]):
                 n = 0
@@ -157,84 +145,62 @@ def sgs_trad(params: Params, debug=False, nnc=False):
                                 n += 1
                                 if n >= params.neigh.nb:
                                     break
-                #print(n)
                 if n == 0:
-                    ...
-                    #print(path[i_pt])
                     Res = Res.flatten()
-                    #print(np.sum([params.covar.c0]))
                     Res[path[i_pt]] = U[i_pt]*np.sum([params.covar.c0])
                     NEIGH = []
                 else:
-                    left = np.array([0, 0])
-                    neigh_nn = neigh_nn[~np.isnan(neigh_nn)]
-                    for idn in neigh_nn:
-                        left = np.vstack((left, ss_XY_s[int(idn)]))
+                    if params.neigh.lookup:
+                        neigh_nn = neigh_nn[~np.isnan(neigh_nn)].astype(int)
+                        a0_C = ss_a0_C_s[neigh_nn[:n]]
+                        neigh_nn_len = len(neigh_nn[:n])
+                        ab_C = np.zeros((neigh_nn_len, neigh_nn_len))
+                        for i in range(neigh_nn_len):
+                            ab_C[i] = ss_ab_C_s[neigh_nn[i], neigh_nn[:n]]
 
-                    D = pdist(np.matmul(left, params.covar.cx))
-                    C = params.covar.g(D)
-                    #C = np.round(C, 4)
-
-                    if n == 1:
-                        a0_C = C
-                        ab_C = [[1]]
+                        if ab_C.ndim == 1:
+                            ab_C = [ab_C]
                     else:
-                        a0_C = np.transpose(C[:n])
-                        ab_C = np.diag(np.ones(n))*0.5
-                        low_t = np.tril(np.ones((n, n)), -1)
-                        n_next = n
-                        for j in range(np.shape(low_t)[0]):
-                            for i in range(np.shape(low_t)[1]):
-                                if low_t[i, j] == 1:
-                                    low_t[i, j] = C[n_next]
-                                    n_next += 1
-                        #print(low_t)
-                        ab_C += low_t
-                        ab_C += np.transpose(ab_C)
-                        #ab_C = np.round(ab_C, 4)
+                        left = np.array([0, 0])
+                        neigh_nn = neigh_nn[~np.isnan(neigh_nn)]
+                        for idn in neigh_nn:
+                            left = np.vstack((left, ss_XY_s[int(idn)]))
+
+                        D = pdist(np.matmul(left, params.covar.cx))
+                        C = params.covar.g(D)
+
+                        if n == 1:
+                            a0_C = C
+                            ab_C = [[1]]
+                        else:
+                            a0_C = np.transpose(C[:n])
+                            ab_C = np.diag(np.ones(n))*0.5
+                            low_t = np.tril(np.ones((n, n)), -1)
+                            n_next = n
+                            for j in range(np.shape(low_t)[0]):
+                                for i in range(np.shape(low_t)[1]):
+                                    if low_t[i, j] == 1:
+                                        low_t[i, j] = C[n_next]
+                                        n_next += 1
+                            ab_C += low_t
+                            ab_C += np.transpose(ab_C)
 
 
                     LAMBDA = np.linalg.lstsq(ab_C, a0_C, rcond=None)[0]
                     S = np.sum([params.covar.c0]) - np.matmul(np.transpose(LAMBDA), a0_C)
-                    if i_pt < 10:
-                        ...
-                        #print(LAMBDA)
-                        #print(ab_C, a0_C)
-                        #print(sqrt(S))
+
                     NEIGH = NEIGH_1 + (NEIGH_2-1)*params.ny
                     NEIGH = NEIGH[:n].flatten()
                     right = []
                     Res = Res.flatten()
                     for el in NEIGH:
                         right.append(Res[int(el)-1])
-                    #print(S)
-                    #print(n)
-                    #print(C)
-                    #print(ab_C)
-                    #print('---------------------')
+
                     Res[path[i_pt]] = np.matmul(np.transpose(LAMBDA), right) + U[i_pt]*sqrt(S)
-                    #print(Res)
-                    #print(f'{n}, {i_pt}\n')
-                    #print(path[i_pt])
-                    #print(right)
-                    if i_pt < 10:
-                        ...
-                        #print(LAMBDA)
-                        #print(C)
-                        #print(ab_C, a0_C)
-                        #print(NEIGH)
-                        #print(right)
-                        #print(Res[int(NEIGH[0])])
-                        #print(Res[path[i_pt]])
-                        #print(Res)
-                        #print(S)
-                        #print('---------------------')
-        #print(i_real)
+
         Res = Res.reshape((params.nx, params.ny))
-        #print(Res)
-        #print(np.shape(Res))
+
         Rest[:, :, i_real] = Res
-        #print(np.shape(Rest))
 
     Rest = np.transpose(Rest, (1, 0, 2))
     return Rest+params.mean

@@ -1,7 +1,7 @@
 from __future__ import annotations
 import numpy as np
 from numpy.typing import ArrayLike
-from math import exp, cos, sin, pi
+from math import cos, sin, pi
 from typing import Callable
 
 
@@ -35,7 +35,7 @@ class Covar:
     alpha: float
     intvario: list
     g: float
-    models_list = ['gaussian', 'exponential']
+    models_list = ['gaussian', 'exponential', 'spherical', 'hyperbolic']
 
     def __init__(self, model, range0, azimuth, c0, alpha):
         self.model = model
@@ -50,10 +50,16 @@ class Covar:
         match self.model:
             case 'gaussian':
                 self.intvario = [.58]
-                self.g: Callable[[ArrayLike], ArrayLike] = lambda h: np.exp(-h**2)
+                self.g: Callable[[ArrayLike], ArrayLike] = lambda h: np.exp(-h**2/self.alpha**2)
             case 'exponential':
                 self.intvario = [.41]
-                self.g: Callable[[ArrayLike], ArrayLike] = lambda h: np.exp(-h)
+                self.g: Callable[[ArrayLike], ArrayLike] = lambda h: np.exp(-h/self.alpha)
+            case 'spherical':
+                self.intvario = [1.3]
+                self.g: Callable[[ArrayLike], ArrayLike] = lambda h: 1-3/2*np.minimum(h/self.alpha, 1)+1/2*np.minimum(h/self.alpha, 1)**3
+            case 'hyperbolic':
+                self.intvario = [.2, .05]
+                self.g: Callable[[ArrayLike], ArrayLike] = lambda h: 1/(1+h)
             case _:
                 raise ValueError('Your model is not supported yet')
 
@@ -81,4 +87,5 @@ class Neigh:
         self.wradius = wradius
         self.lookup = lookup
         self.nb = nb
+
 

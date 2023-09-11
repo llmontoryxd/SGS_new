@@ -1,28 +1,24 @@
-import matplotlib.pyplot as plt
 from trad import sgs_trad
 from models import Params, Covar, Neigh
+from plot import plot
 
-covar = Covar(model='exponential',
+covar = Covar(model='gaussian',
               range0=[10, 10],
               azimuth=[0],
-              c0=1,
+              c0=0.1,
               alpha=1)
 
 neigh = Neigh(wradius=3,
-              lookup=False,
+              lookup=True,
               nb=40)
 
 params = Params(nx=100,
                 ny=50,
                 m=1,
-                mean=0.0,
+                mean=1.5,
                 covar=covar,
                 neigh=neigh
                 )
 
 Rest = sgs_trad(params, debug=False, nnc=True)
-c = plt.imshow(Rest)
-plt.xlabel('x')
-plt.ylabel('y')
-plt.colorbar(c)
-plt.show()
+plot(Rest, params.m, show=True, save=True, show_NNC=True)
