@@ -12,17 +12,25 @@ class Params:
     mean: float
     covar: Covar
     neigh: Neigh
+    nnc: bool
+    category: bool
+    debug: bool
+    calc_frob: bool
     seed_search = None
     seed_path = None
     seed_U = None
 
-    def __init__(self, nx, ny, m, mean, covar, neigh):
+    def __init__(self, nx, ny, m, mean, covar, neigh, nnc=False, category=False, debug=False, calc_frob=False):
         self.nx = nx
         self.ny = ny
         self.m = m
         self.mean = mean
         self.covar = covar
         self.neigh = neigh
+        self.nnc = nnc
+        self.category = category
+        self.debug = debug
+        self.calc_frob = calc_frob
 
 
 class Covar:

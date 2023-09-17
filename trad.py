@@ -1,7 +1,9 @@
 import numpy as np
 from math import ceil, sqrt
 from scipy.spatial.distance import pdist, squareform
-from scipy.sparse import kron
+from scipy.sparse import kron, csr_matrix
+from scipy.sparse.linalg import inv
+from tqdm import tqdm
 from models import Params
 
 
@@ -49,6 +51,7 @@ def sgs_trad(params: Params, debug=False, nnc=False, category=False):
     ss_n = len(ss_X_s)
     ss_scale_s = np.ones(len(ss_id_2))
 
+
     # lookup table
     if params.neigh.lookup:
         a0_h = np.zeros((len(ss_X_s), 2))
@@ -66,7 +69,9 @@ def sgs_trad(params: Params, debug=False, nnc=False, category=False):
     Rest = np.zeros((params.nx, params.ny, params.m)) + np.nan
     Rest_means = np.zeros(params.m)
     Rest_std = np.zeros(params.m)
-    for i_real in range(np.shape(Rest)[2]):
+    LambdaM = np.zeros((params.nx*params.ny, params.nx*params.ny, params.m))
+    CY = np.zeros((params.nx*params.ny, params.nx*params.ny, params.m))
+    for i_real in tqdm(range(np.shape(Rest)[2])):
         Res = np.zeros((params.nx, params.ny)) + np.nan
 
         # generation of the path
@@ -121,6 +126,7 @@ def sgs_trad(params: Params, debug=False, nnc=False, category=False):
             for i_pt in range(start[i_scale], nb[i_scale]+start[i_scale]):
                 n = 0
                 neigh_nn = np.zeros((params.neigh.nb, 1)) + np.nan
+                neigh_nn_for_id = np.zeros((params.neigh.nb, 3)) + np.nan
                 NEIGH_1 = np.zeros((params.neigh.nb, 1)) + np.nan
                 NEIGH_2 = np.zeros((params.neigh.nb, 1)) + np.nan
                 for nn in range(1, np.shape(ss_XY_s)[0]):
@@ -141,6 +147,7 @@ def sgs_trad(params: Params, debug=False, nnc=False, category=False):
                             neigh_nn[n] = nn
                             NEIGH_1[n] = ijt[1] + 1
                             NEIGH_2[n] = ijt[0] + 1
+                            neigh_nn_for_id[n, :] = [nn, ijt[1] + 1, ijt[0] + 1]
                             n += 1
                             if n >= params.neigh.nb:
                                 break
@@ -150,6 +157,7 @@ def sgs_trad(params: Params, debug=False, nnc=False, category=False):
                                 neigh_nn[n] = nn
                                 NEIGH_1[n] = ijt[1]+1
                                 NEIGH_2[n] = ijt[0]+1
+                                neigh_nn_for_id[n, :] = [nn, ijt[1] + 1, ijt[0] + 1]
                                 n += 1
                                 if n >= params.neigh.nb:
                                     break
@@ -158,6 +166,8 @@ def sgs_trad(params: Params, debug=False, nnc=False, category=False):
                     Res[path[i_pt]] = U[i_pt]*np.sum([params.covar.c0])
                     NEIGH = []
                 else:
+                    neigh_id = np.matmul(neigh_nn_for_id[:n, 1:3] - 1, np.transpose([1, params.ny]))
+                    neigh_id = neigh_id.astype(int)
                     if params.neigh.lookup:
                         neigh_nn = neigh_nn[~np.isnan(neigh_nn)].astype(int)
                         a0_C = ss_a0_C_s[neigh_nn[:n]]
@@ -204,10 +214,17 @@ def sgs_trad(params: Params, debug=False, nnc=False, category=False):
                     for el in NEIGH:
                         right.append(Res[int(el)-1])
 
+                    if params.calc_frob:
+                        LambdaM[path[i_pt], neigh_id, i_real] = LAMBDA / sqrt(S)
+                        LambdaM[path[i_pt], path[i_pt], i_real] = -1 / sqrt(S)
                     Res[path[i_pt]] = np.matmul(np.transpose(LAMBDA), right) + U[i_pt]*sqrt(S)
 
         Res = Res.reshape((params.nx, params.ny))
 
+        if params.calc_frob:
+            CY[:, :, i_real] = np.linalg.lstsq(csr_matrix(LambdaM[:, :, i_real]).toarray(),
+                                     np.transpose(np.linalg.pinv(csr_matrix(LambdaM[:, :, i_real]).toarray())),
+                         rcond=None)[0]
         Rest[:, :, i_real] = Res
 
     if category:
@@ -229,7 +246,7 @@ def sgs_trad(params: Params, debug=False, nnc=False, category=False):
         Rest = Rest + params.mean
         Rest_means = Rest_means + params.mean
 
-    return Rest, Rest_means, Rest_std, grid
+    return Rest, Rest_means, Rest_std, grid, CY
 
 
 

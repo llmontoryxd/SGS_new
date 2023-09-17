@@ -50,6 +50,8 @@ def vario(grid, Rest, covar, cut_off=20, bins=50):
             var: Callable[[ArrayLike], ArrayLike] = lambda h: covar.c0*(1 - np.exp(-h**2/covar.range[0]**2))
         case 'exponential':
             var: Callable[[ArrayLike], ArrayLike] = lambda h: covar.c0*(1 - np.exp(-h/covar.range[0]))
+        case 'spherical':
+            var: Callable[[ArrayLike], ArrayLike] = lambda h: covar.c0*(3/2*np.minimum(h/covar.range[0], 1)-1/2*np.minimum(h/covar.range[0], 1)**3)
         case _:
             raise ValueError('Your model is not supported yet')
 

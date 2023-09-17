@@ -8,7 +8,7 @@ from histo import histo, qq_plot
 from vario import vario
 
 
-def plot(Rest, means, std, grid, covar, m, save=False, show=False, show_NNC=False, mode=None):
+def plot(Rest, means, std, grid, covar, m, err: None|list, save=False, show=False, show_NNC=False, mode=None):
     if not show_NNC:
         if mode is None:
             cols = floor(sqrt(m))
@@ -28,13 +28,19 @@ def plot(Rest, means, std, grid, covar, m, save=False, show=False, show_NNC=Fals
                         break
                     c = axs[i, j].imshow(Rest[:, :, m_now])
                     plt.colorbar(c, ax=axs[i, j])
-                    axs[i, j].set(xlabel='x', ylabel='y', title=f'mean = {means[i+j]}')
+                    title_str = f'mean = {means[i+j]}'
+                    if err is not None:
+                        title_str += f', err = {err[i+j]}'
+                    axs[i, j].set(xlabel='x', ylabel='y', title=title_str)
                     m_now += 1
         else:
             for i in range(rows):
                 c = axs[i, 0].imshow(Rest[:, :, i])
                 plt.colorbar(c, ax=axs[i, 0])
-                axs[i, 0].set(xlabel='x', ylabel='y', title=f'mean = {means[i]}')
+                title_str = f'mean = {means[i]}'
+                if err is not None:
+                    title_str += f', err = {err[i]}'
+                axs[i, 0].set(xlabel='x', ylabel='y', title=title_str)
 
                 match mode:
                     case 'histo':
