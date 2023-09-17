@@ -5,10 +5,16 @@ from scipy.sparse import kron
 from models import Params
 
 
-def sgs_trad(params: Params, debug=False, nnc=False):
+def sgs_trad(params: Params, debug=False, nnc=False, category=False):
     # creating grid
     X = np.linspace(1, params.nx, num=params.nx)
     Y = np.linspace(1, params.ny, num=params.ny)
+    grid = np.zeros((len(X), len(Y), 2))
+    for k in range(np.shape(grid)[2]):
+        for j in range(np.shape(grid)[1]):
+            for i in range(np.shape(grid)[0]):
+                grid[i, j, :] = [X[i], Y[j]]
+    grid = grid.reshape(np.shape(grid)[0]*np.shape(grid)[1], 2)
     X, Y = np.meshgrid(X, Y)
 
 
@@ -58,6 +64,8 @@ def sgs_trad(params: Params, debug=False, nnc=False):
 
     # realization loop
     Rest = np.zeros((params.nx, params.ny, params.m)) + np.nan
+    Rest_means = np.zeros(params.m)
+    Rest_std = np.zeros(params.m)
     for i_real in range(np.shape(Rest)[2]):
         Res = np.zeros((params.nx, params.ny)) + np.nan
 
@@ -202,8 +210,26 @@ def sgs_trad(params: Params, debug=False, nnc=False):
 
         Rest[:, :, i_real] = Res
 
+    if category:
+        for k in range(np.shape(Rest)[2]):
+            for j in range(np.shape(Rest)[1]):
+                for i in range(np.shape(Rest)[0]):
+                    el = Rest[i, j, k]
+                    if el > 0:
+                        Rest[i, j, k] = 1
+                    else:
+                        Rest[i, j, k] = 0
     Rest = np.transpose(Rest, (1, 0, 2))
-    return Rest+params.mean
+
+    for m in range(np.shape(Rest)[2]):
+        Rest_means[m] = np.mean(Rest[:, :, m])
+        Rest_std[m] = np.std(Rest[:, :, m])
+
+    if not category:
+        Rest = Rest + params.mean
+        Rest_means = Rest_means + params.mean
+
+    return Rest, Rest_means, Rest_std, grid
 
 
 

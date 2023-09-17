@@ -12,13 +12,13 @@ neigh = Neigh(wradius=3,
               lookup=True,
               nb=40)
 
-params = Params(nx=100,
+params = Params(nx=50,
                 ny=50,
                 m=1,
-                mean=1.5,
+                mean=0.0,
                 covar=covar,
                 neigh=neigh
                 )
 
-Rest = sgs_trad(params, debug=False, nnc=True)
-plot(Rest, params.m, show=True, save=True, show_NNC=True)
+Rest, means, std, grid = sgs_trad(params, debug=False, nnc=True, category=False)
+plot(Rest, means, std, grid, covar, params.m, show=False, save=True, show_NNC=False, mode='vario')

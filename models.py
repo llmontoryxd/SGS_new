@@ -44,19 +44,16 @@ class Covar:
         self.c0 = c0
         self.alpha = alpha
         assert self.model in self.models_list
-        self.__call__()
-
-    def __call__(self):
         match self.model:
             case 'gaussian':
                 self.intvario = [.58]
-                self.g: Callable[[ArrayLike], ArrayLike] = lambda h: np.exp(-h**2/self.alpha**2)
+                self.g: Callable[[ArrayLike], ArrayLike] = lambda h: np.exp(-h**2)
             case 'exponential':
                 self.intvario = [.41]
-                self.g: Callable[[ArrayLike], ArrayLike] = lambda h: np.exp(-h/self.alpha)
+                self.g: Callable[[ArrayLike], ArrayLike] = lambda h: np.exp(-h)
             case 'spherical':
                 self.intvario = [1.3]
-                self.g: Callable[[ArrayLike], ArrayLike] = lambda h: 1-3/2*np.minimum(h/self.alpha, 1)+1/2*np.minimum(h/self.alpha, 1)**3
+                self.g: Callable[[ArrayLike], ArrayLike] = lambda h: 1-3/2*np.minimum(h, 1)+1/2*np.minimum(h, 1)**3
             case 'hyperbolic':
                 self.intvario = [.2, .05]
                 self.g: Callable[[ArrayLike], ArrayLike] = lambda h: 1/(1+h)
