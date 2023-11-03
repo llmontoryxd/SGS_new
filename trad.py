@@ -18,6 +18,7 @@ def sgs_trad(params: Params, debug=False, nnc=False, category=False):
                 grid[i, j, :] = [X[i], Y[j]]
     grid = grid.reshape(np.shape(grid)[0]*np.shape(grid)[1], 2)
     X, Y = np.meshgrid(X, Y)
+    print(params.nnc)
 
 
 
@@ -232,7 +233,7 @@ def sgs_trad(params: Params, debug=False, nnc=False, category=False):
             for j in range(np.shape(Rest)[1]):
                 for i in range(np.shape(Rest)[0]):
                     el = Rest[i, j, k]
-                    if el > 0:
+                    if el > params.cat_threshold:
                         Rest[i, j, k] = 1
                     else:
                         Rest[i, j, k] = 0
@@ -241,12 +242,11 @@ def sgs_trad(params: Params, debug=False, nnc=False, category=False):
     for m in range(np.shape(Rest)[2]):
         Rest_means[m] = np.mean(Rest[:, :, m])
         Rest_std[m] = np.std(Rest[:, :, m])
-
     if not category:
         Rest = Rest + params.mean
         Rest_means = Rest_means + params.mean
 
-    return Rest, Rest_means, Rest_std, grid, CY
+    return Rest, Rest_means, Rest_std, grid, CY, U
 
 
 

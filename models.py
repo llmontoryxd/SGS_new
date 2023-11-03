@@ -5,6 +5,124 @@ from math import cos, sin, pi
 from typing import Callable
 
 
+class Config:
+    model: str
+    range0: list[float]
+    azimuth: list
+    c0: float
+    alpha: float
+    wradius: int
+    lookup: bool
+    nb: int
+    nx: int
+    ny: int
+    m: int
+    mean: float
+    nnc: bool
+    category: bool
+    cat_threshold: float
+    debug: bool
+    calc_frob: bool
+    seed_search: str | None
+    seed_path: str | None
+    seed_U: str | None
+    cutoff: float
+    bins: int
+    show: bool
+    save: bool
+    show_NNC: bool
+    mode: str | None
+    savefilename: str
+
+    def __init__(self, filename):
+        self.range0 = []
+        self.azimuth = []
+        self._read(filename)
+
+    def _read(self, filename):
+        with open(filename, 'r') as f:
+            contents = f.readlines()
+            for content in contents:
+                content = content.split()
+                if len(content) == 0:
+                    continue
+                match content[0]:
+                    case 'model':
+                        self.model = content[1]
+                    case 'range':
+                        arg_nums = len(content) - 1
+                        for arg_num in range(arg_nums):
+                            self.range0.append(float(content[arg_num+1]))
+                    case 'azimuth':
+                        arg_nums = len(content) - 1
+                        for arg_num in range(arg_nums):
+                            self.azimuth.append(float(content[arg_num + 1]))
+                    case 'c0':
+                        self.c0 = float(content[1])
+                    case 'alpha':
+                        self.alpha = float(content[1])
+                    case 'wradius':
+                        self.wradius = int(content[1])
+                    case 'lookup':
+                        self.lookup = bool(content[1])
+                    case 'nb':
+                        self.nb = int(content[1])
+                    case 'nx':
+                        self.nx = int(content[1])
+                    case 'ny':
+                        self.ny = int(content[1])
+                    case 'm':
+                        self.m = int(content[1])
+                    case 'mean':
+                        self.mean = float(content[1])
+                    case 'nnc':
+                        self.nnc = bool(int(content[1]))
+                    case 'category':
+                        self.category = bool(int(content[1]))
+                    case 'cat_threshold':
+                        if len(content) == 1:
+                            self.cat_threshold = 0
+                        else:
+                            self.cat_threshold = float(content[1])
+                    case 'debug':
+                        self.debug = bool(int(content[1]))
+                    case 'calc_frob':
+                        self.calc_frob = bool(int(content[1]))
+                    case 'seed_search':
+                        if len(content) == 1:
+                            self.seed_search = None
+                        else:
+                            self.seed_search = content[1]
+                    case 'seed_path':
+                        if len(content) == 1:
+                            self.seed_path = None
+                        else:
+                            self.seed_path = content[1]
+                    case 'seed_U':
+                        if len(content) == 1:
+                            self.seed_U = None
+                        else:
+                            self.seed_U = content[1]
+                    case 'cutoff':
+                        self.cutoff = float(content[1])
+                    case 'bins':
+                        self.bins = int(content[1])
+                    case 'show':
+                        self.show = bool(int(content[1]))
+                    case 'save':
+                        self.save = bool(int(content[1]))
+                    case 'savefilename':
+                        self.savefilename = content[1]
+                    case 'show_NNC':
+                        self.show_NNC = bool(int(content[1]))
+                    case 'mode':
+                        if len(content) == 1:
+                            self.mode = None
+                        else:
+                            self.mode = content[1]
+
+
+
 class Params:
     nx: int
     ny: int
@@ -14,13 +132,16 @@ class Params:
     neigh: Neigh
     nnc: bool
     category: bool
+    cat_threshold: float
     debug: bool
     calc_frob: bool
-    seed_search = None
-    seed_path = None
-    seed_U = None
+    seed_search: str | None
+    seed_path: str | None
+    seed_U: str | None
 
-    def __init__(self, nx, ny, m, mean, covar, neigh, nnc=False, category=False, debug=False, calc_frob=False):
+    def __init__(self, nx, ny, m, mean, covar, neigh, nnc=False,
+                 category=False, cat_threshold=0.225,
+                 debug=False, calc_frob=False, seed_search=None, seed_path=None, seed_U=None):
         self.nx = nx
         self.ny = ny
         self.m = m
@@ -31,6 +152,10 @@ class Params:
         self.category = category
         self.debug = debug
         self.calc_frob = calc_frob
+        self.cat_threshold = cat_threshold
+        self.seed_search = seed_search
+        self.seed_path = seed_path
+        self.seed_U = seed_U
 
 
 class Covar:
@@ -92,5 +217,24 @@ class Neigh:
         self.wradius = wradius
         self.lookup = lookup
         self.nb = nb
+
+
+class Plot:
+    cutoff: float
+    bins: int
+    show: bool
+    save: bool
+    show_NNC: bool
+    mode: str | None
+    savefilename: str
+
+    def __init__(self, cutoff, bins, show, save, show_NNC, mode, savefilename):
+        self.cutoff = cutoff
+        self.bins = bins
+        self.show = show
+        self.save = save
+        self.show_NNC = show_NNC
+        self.mode = mode
+        self.savefilename = savefilename
 
 

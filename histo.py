@@ -13,6 +13,11 @@ def histo(Rest, means, std):
     return one_rest, gaussian(one_rest, means, std)
 
 
+def histo_U(U):
+    U = np.sort(U.flatten())
+    return U, gaussian(U, 0, 1)
+
+
 def qq_plot(Rest, means, std):
     one_rest = np.sort(Rest[:, :].flatten())
     norm_one_rest = np.array((one_rest - means)/std)

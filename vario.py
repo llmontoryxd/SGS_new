@@ -31,7 +31,7 @@ def cloud(grid, Rest, num_show=1000):
     return lag.flatten()[show_idxs], semi_vmatrix.flatten()[show_idxs]
 
 
-def vario(grid, Rest, covar, cut_off=20, bins=50):
+def vario(grid, Rest, covar, cut_off=100, bins=20):
     lag = distance.squareform(distance.pdist(grid))
     lag = lag.flatten()
     semi_vmatrix = semi_variance(Rest)
