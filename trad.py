@@ -18,7 +18,6 @@ def sgs_trad(params: Params, debug=False, nnc=False, category=False):
                 grid[i, j, :] = [X[i], Y[j]]
     grid = grid.reshape(np.shape(grid)[0]*np.shape(grid)[1], 2)
     X, Y = np.meshgrid(X, Y)
-    print(params.nnc)
 
 
 
