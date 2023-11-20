@@ -29,6 +29,13 @@ class App(CTk.CTk):
         self.models_list = ['gaussian', 'exponential', 'spherical', 'hyperbolic']
         self.model_combobox = CTk.CTkComboBox(master=self.covar_frame, values=self.models_list)
         self.model_combobox.grid(row=1, column=1)
+        self.dim_label = CTk.CTkLabel(master=self.covar_frame,
+                                        text='Num dim',
+                                        fg_color='transparent')
+        self.dim_label.grid(row=1, column=2)
+        self.dim_list = ['1', '2', '3']
+        self.dim_combobox = CTk.CTkComboBox(master=self.covar_frame, values=self.dim_list)
+        self.dim_combobox.grid(row=1, column=3)
 
         #Range
         self.range0_width = 50
@@ -318,6 +325,7 @@ class App(CTk.CTk):
     def _write_config(self):
         with open(self._get_config_filename(), 'w') as f:
             f.write(f'model {self.model_combobox.get()}\n')
+            f.write(f'ndim {self.dim_combobox.get()}\n')
             range0_str = 'range ' + f'{self.range0_entry_x.get()}'
             if len(self.range0_entry_y.get()) != 0:
                 range0_str += f' {self.range0_entry_y.get()}'
@@ -398,6 +406,8 @@ class App(CTk.CTk):
                 match content[0]:
                     case 'model':
                         self.model_combobox.set(content[1])
+                    case 'ndim':
+                        self.dim_combobox.set(content[1])
                     case 'range':
                         if len(content) > 1:
                             self._set_entry(self.range0_entry_x, content[1])
@@ -426,6 +436,8 @@ class App(CTk.CTk):
                         self._set_entry_from_content(self.grid_entry_x, content, 1)
                     case 'ny':
                         self._set_entry_from_content(self.grid_entry_y, content, 1)
+                    case 'nz':
+                        self._set_entry_from_content(self.grid_entry_z, content, 1)
                     case 'm':
                         self._set_entry_from_content(self.m_entry, content, 1)
                     case 'mean':

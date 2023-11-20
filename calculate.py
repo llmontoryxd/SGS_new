@@ -1,7 +1,13 @@
+import numpy as np
+
 from trad import sgs_trad
+from sgs import trad_sgs
 from models import Params, Covar, Neigh, Config, Plot
 from plot import plot
 from frob import frob
+import utilities
+import k3d
+import sgs
 
 
 def calculate(configfilename):
@@ -17,8 +23,10 @@ def calculate(configfilename):
               lookup=config.lookup,
               nb=config.nb)
 
-    params = Params(nx=config.nx,
+    params = Params(ndim=config.ndim,
+                nx=config.nx,
                 ny=config.ny,
+                nz=config.nz,
                 m=config.m,
                 mean=config.mean,
                 covar=covar,
@@ -33,16 +41,33 @@ def calculate(configfilename):
                 seed_U=config.seed_U
                 )
 
-    Rest, means, std, grid, CY, U = sgs_trad(params, debug=params.debug, nnc=params.nnc, category=params.category)
+    Rest, means, std, grid, CY, U = trad_sgs(params, [])
     err = None
     if params.calc_frob:
         err = frob(params, CY, debug=params.debug, nnc=params.nnc)
 
     plot_params = Plot(cutoff=config.cutoff,
-                   bins=config.bins,
-                   show=config.show,
-                   save=config.save,
-                   savefilename=config.savefilename,
-                   show_NNC=config.show_NNC,
-                   mode=config.mode)
+                    bins=config.bins,
+                    show=config.show,
+                    save=config.save,
+                    savefilename=config.savefilename,
+                    show_NNC=config.show_NNC,
+                    mode=config.mode)
     plot(Rest, means, std, grid, covar, params.m, err, U, plot_params)
+
+
+
+
+    # Rest, means, std, grid, CY, U = sgs_trad(params, debug=params.debug, nnc=params.nnc, category=params.category)
+    # err = None
+    # if params.calc_frob:
+    #     err = frob(params, CY, debug=params.debug, nnc=params.nnc)
+    #
+    # plot_params = Plot(cutoff=config.cutoff,
+    #                bins=config.bins,
+    #                show=config.show,
+    #                save=config.save,
+    #                savefilename=config.savefilename,
+    #                show_NNC=config.show_NNC,
+    #                mode=config.mode)
+    # plot(Rest, means, std, grid, covar, params.m, err, U, plot_params)

@@ -7,6 +7,7 @@ from typing import Callable
 
 class Config:
     model: str
+    ndim: int
     range0: list[float]
     azimuth: list
     c0: float
@@ -16,6 +17,7 @@ class Config:
     nb: int
     nx: int
     ny: int
+    nz: int
     m: int
     mean: float
     nnc: bool
@@ -49,6 +51,8 @@ class Config:
                 match content[0]:
                     case 'model':
                         self.model = content[1]
+                    case 'ndim':
+                        self.ndim = int(content[1])
                     case 'range':
                         arg_nums = len(content) - 1
                         for arg_num in range(arg_nums):
@@ -64,13 +68,15 @@ class Config:
                     case 'wradius':
                         self.wradius = int(content[1])
                     case 'lookup':
-                        self.lookup = bool(content[1])
+                        self.lookup = bool(int(content[1]))
                     case 'nb':
                         self.nb = int(content[1])
                     case 'nx':
                         self.nx = int(content[1])
                     case 'ny':
                         self.ny = int(content[1])
+                    case 'nz':
+                        self.nz = int(content[1])
                     case 'm':
                         self.m = int(content[1])
                     case 'mean':
@@ -124,8 +130,10 @@ class Config:
 
 
 class Params:
+    ndim: int
     nx: int
     ny: int
+    nz: int
     m: int
     mean: float
     covar: Covar
@@ -139,11 +147,13 @@ class Params:
     seed_path: str | None
     seed_U: str | None
 
-    def __init__(self, nx, ny, m, mean, covar, neigh, nnc=False,
+    def __init__(self, ndim, nx, ny, nz, m, mean, covar, neigh, nnc=False,
                  category=False, cat_threshold=0.225,
                  debug=False, calc_frob=False, seed_search=None, seed_path=None, seed_U=None):
+        self.ndim = ndim
         self.nx = nx
         self.ny = ny
+        self.nz = nz
         self.m = m
         self.mean = mean
         self.covar = covar
@@ -196,7 +206,7 @@ class Covar:
         self.range = np.asarray(self.range0) * self.intvario[-1]
 
         if len(self.range) == 1 or len(self.azimuth) == 0:
-            self.cx = 1/np.diag(self.range[0])
+            self.cx = 1/np.diag([self.range[0]])
         elif len(self.range) == 2:
             ang = self.azimuth[0]
             cang = cos(ang/180*pi)
@@ -204,8 +214,22 @@ class Covar:
             rot = [[cang, -sang],
                    [sang, cang]]
             self.cx = rot/np.diag(self.range)
+        elif len(self.range) == 3:
+            theta = self.azimuth[0]
+            phi = self.azimuth[1]
+            ctheta = cos(theta/180*pi)
+            stheta = sin(theta/180*pi)
+            cphi = cos(phi/180*pi)
+            sphi = sin(phi/180*pi)
+
+            rot = [[ctheta*cphi, -stheta, -ctheta*sphi],
+                   [stheta*cphi, ctheta, -stheta*sphi],
+                   [sphi, 0, cphi]]
+
+            self.cx = rot/np.diag(self.range)
 
         self.cx = np.nan_to_num(self.cx)
+        print(self.cx)
 
 
 class Neigh:

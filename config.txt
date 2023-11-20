@@ -1,17 +1,18 @@
 model gaussian
-range 10 10
+ndim 2
+range 400 400
 azimuth 0
 c0 1
 alpha 1
-wradius 7
-lookup 1
+wradius 5
+lookup 0
 nb 40
-nx 100
-ny 100
-nz 
+nx 50
+ny 50
+nz 3
 m 1
 mean 0
-nnc 1
+nnc 0
 category 0
 cat_threshold 
 debug 0
