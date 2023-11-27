@@ -105,6 +105,15 @@ class App(CTk.CTk):
         self.alpha_entry = CTk.CTkEntry(master=self.covar_frame, width=self.alpha_width)
         self.alpha_entry.grid(row=7, column=1)
 
+        #Nugget
+        self.nugget_width = 50
+        self.nugget_label = CTk.CTkLabel(master=self.covar_frame,
+                                     text='Nugget',
+                                     fg_color='transparent')
+        self.nugget_label.grid(row=8, column=0)
+        self.nugget_entry = CTk.CTkEntry(master=self.covar_frame, width=self.nugget_width)
+        self.nugget_entry.grid(row=8, column=1)
+
 
         #Neigh Frame
         self.neigh_frame = CTk.CTkFrame(master=self, fg_color='transparent')
@@ -342,6 +351,7 @@ class App(CTk.CTk):
 
             f.write(f'c0 {self.c0_entry.get()}\n')
             f.write(f'alpha {self.alpha_entry.get()}\n')
+            f.write(f'nugget {self.nugget_entry.get()}\n')
             f.write(f'wradius {self.wradius_entry.get()}\n')
             f.write(f'lookup {self.lookup_checkbox.get()}\n')
             f.write(f'nb {self.nb_entry.get()}\n')
@@ -426,6 +436,8 @@ class App(CTk.CTk):
                         self._set_entry_from_content(self.c0_entry, content, 1)
                     case 'alpha':
                         self._set_entry_from_content(self.alpha_entry, content, 1)
+                    case 'nugget':
+                        self._set_entry_from_content(self.nugget_entry, content, 1)
                     case 'wradius':
                         self._set_entry_from_content(self.wradius_entry, content, 1)
                     case 'lookup':
@@ -447,7 +459,10 @@ class App(CTk.CTk):
                     case 'category':
                         self._set_checkbox(self.cat_checkbox, content[1])
                     case 'cat_threshold':
-                        self._set_entry_from_content(self.cat_threshold_entry, content, 1)
+                        to_view = ''
+                        for i_th in range(1, len(content)):
+                            to_view += ' ' + str(content[i_th])
+                        self._set_entry(self.cat_threshold_entry, to_view)
                     case 'debug':
                         self._set_checkbox(self.debug_checkbox, content[1])
                     case 'calc_frob':

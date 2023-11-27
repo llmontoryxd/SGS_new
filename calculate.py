@@ -1,13 +1,13 @@
 import numpy as np
+import matplotlib.pyplot as plt
+
+from matplotlib.animation import FuncAnimation, PillowWriter
 
 from trad import sgs_trad
 from sgs import trad_sgs
 from models import Params, Covar, Neigh, Config, Plot
 from plot import plot
 from frob import frob
-import utilities
-import k3d
-import sgs
 
 
 def calculate(configfilename):
@@ -16,8 +16,9 @@ def calculate(configfilename):
     covar = Covar(model=config.model,
                 range0=config.range0,
                 azimuth=config.azimuth,
-              c0=config.c0,
-              alpha=config.alpha)
+                c0=config.c0,
+                alpha=config.alpha,
+                nugget=config.nugget)
 
     neigh = Neigh(wradius=config.wradius,
               lookup=config.lookup,
@@ -41,33 +42,29 @@ def calculate(configfilename):
                 seed_U=config.seed_U
                 )
 
-    Rest, means, std, grid, CY, U = trad_sgs(params, [])
+    if params.category:
+        params.covar.c0 = params.cat_threshold*(1-params.cat_threshold)
+
+
+    Rest, means, std, grid, CY, U = sgs_trad(params, params.debug, params.nnc, params.category)
     err = None
     if params.calc_frob:
         err = frob(params, CY, debug=params.debug, nnc=params.nnc)
 
-    plot_params = Plot(cutoff=config.cutoff,
+
+    if config.cutoff is None:
+        config.cutoff = 2*params.covar.range0[0]
+    plot_params = Plot(ndim=params.ndim,
+                    cutoff=config.cutoff,
                     bins=config.bins,
                     show=config.show,
                     save=config.save,
                     savefilename=config.savefilename,
                     show_NNC=config.show_NNC,
+                    category=params.category,
+                    cat_threshold=params.cat_threshold,
                     mode=config.mode)
+
+    print(plot_params.dist)
+
     plot(Rest, means, std, grid, covar, params.m, err, U, plot_params)
-
-
-
-
-    # Rest, means, std, grid, CY, U = sgs_trad(params, debug=params.debug, nnc=params.nnc, category=params.category)
-    # err = None
-    # if params.calc_frob:
-    #     err = frob(params, CY, debug=params.debug, nnc=params.nnc)
-    #
-    # plot_params = Plot(cutoff=config.cutoff,
-    #                bins=config.bins,
-    #                show=config.show,
-    #                save=config.save,
-    #                savefilename=config.savefilename,
-    #                show_NNC=config.show_NNC,
-    #                mode=config.mode)
-    # plot(Rest, means, std, grid, covar, params.m, err, U, plot_params)

@@ -1,10 +1,15 @@
+import random
+
 import numpy as np
-from math import ceil, sqrt
+from math import ceil, sqrt, isnan
 from scipy.spatial.distance import pdist, squareform, cdist
 from scipy.sparse import kron, csr_matrix
 from scipy.sparse.linalg import inv
 from tqdm import tqdm
 from models import Params
+
+import k3d
+import model
 
 
 def create_grid(params: Params):
@@ -40,6 +45,7 @@ def create_grid(params: Params):
 
 def spiral_search(params: Params, debug=False):
     x = ceil(min(params.covar.range[0] * params.neigh.wradius, params.nx))
+    print(x)
     ss_X = np.linspace(-x, x, num=2 * x + 1)
     if params.ndim == 1:
         ss_dist = ss_X/params.covar.range[0]
@@ -107,44 +113,33 @@ def get_lookup_table(params: Params, x_s, y_s, z_s):
 
     return ss_a0_C, ss_ab_C
 
+def map_2d(width, row, col):
+    return width*row+col
 
-def compute_matrices(data, params: Params, u):
-    if np.ndim(u) == 1:
-        u = [u]
-    print(data)
-    d = cdist(data, u)
-    P = np.hstack((data, d))
+def cont_to_indicator(threshold: float):
+    value = np.random.uniform(low=0.0, high=1.0, size=1)
+    if value <= threshold:
+        return 1
+    else:
+        return 0
 
-    c = params.covar.g(P[:, 2])
-    c = np.matrix(c).T
+def cont_to_indicator_arr(threshold: float, arr):
+    for i in range(len(arr)):
+        if arr[i] <= threshold:
+            arr[i] = 1
+        else:
+            arr[i] = 0
 
-    if np.ndim(P) == 1:
-        P = [P]
-    print(P[:, 2])
-    print(P)
-    C = squareform(pdist(P[:, 2]))
-    C = params.covar.g(C)
+    return arr
 
-    return C, c, P
-
-
-def simple_kriging(data, params: Params, u):
-
-    # compute matrices
-    C, c, p = compute_matrices(data, params, u)
-
-    weights = np.linalg.inv(C) * c
-    weights = np.array(weights)
-
-    kvar = c.T * weights
-    kvar = float(params.covar.c0 - kvar)
-    kstd = np.sqrt(kvar)
-
-    print(data)
-
-    return kstd
 
 def sgs_trad(params: Params, debug=False, nnc=False, category=False):
+    models_list = {
+        'gaussian': model.gaussian,
+        'exponential': model.exponential,
+        'spherical': model.spherical
+    }
+
     # creating grid
     if params.ndim == 1:
         X, grid = create_grid(params)
@@ -194,8 +189,11 @@ def sgs_trad(params: Params, debug=False, nnc=False, category=False):
         raise ValueError('Only works in 1, 2 or 3D')
     Rest_means = np.zeros(params.m)
     Rest_std = np.zeros(params.m)
-    LambdaM = np.zeros((params.nx * params.ny, params.nx * params.ny, params.m))
-    CY = np.zeros((params.nx * params.ny, params.nx * params.ny, params.m))
+    if params.calc_frob:
+        LambdaM = np.zeros((params.nx * params.ny, params.nx * params.ny, params.m))
+        CY = np.zeros((params.nx * params.ny, params.nx * params.ny, params.m))
+    else:
+        CY = None
 
 
 
@@ -227,6 +225,7 @@ def sgs_trad(params: Params, debug=False, nnc=False, category=False):
             path = np.array(path_from_file).flatten()
 
         Path[path] = range(len(id))
+        print(Path[path])
         Xf = np.transpose(X).flatten()
         if params.ndim == 1:
             Path = Path.reshape((params.nx))
@@ -250,16 +249,30 @@ def sgs_trad(params: Params, debug=False, nnc=False, category=False):
         nb = [len(id)]
         start = [0, nb]
         sn = 1
+        print(Path)
+        print(path)
 
 
-        # Get U from normal distribution
+        # Get U
         np.random.seed(params.seed_U)
         if params.ndim == 1:
-            U = np.random.randn(params.nx).flatten()
+            if category:
+                U = np.random.uniform(low=0.0, high=1.0, size=params.nx).flatten()
+                U = cont_to_indicator_arr(params.cat_threshold, U)
+            else:
+                U = np.random.randn(params.nx).flatten()
         elif params.ndim == 2:
-            U = np.random.randn(params.nx, params.ny).flatten()
+            if category:
+                U = np.random.uniform(low=0.0, high=1.0, size=(params.nx, params.ny)).flatten()
+                U = cont_to_indicator_arr(params.cat_threshold, U)
+            else:
+                U = np.random.randn(params.nx, params.ny).flatten()
         elif params.ndim == 3:
-            U = np.random.randn(params.nx, params.ny, params.nz).flatten()
+            if category:
+                U = np.random.uniform(low=0.0, high=1.0, size=(params.nx, params.ny, params.nz)).flatten()
+                U = cont_to_indicator_arr(params.cat_threshold, U)
+            else:
+                U = np.random.randn(params.nx, params.ny, params.nz).flatten()
         else:
             raise ValueError('Only works in 1, 2 or 3D')
 
@@ -291,7 +304,7 @@ def sgs_trad(params: Params, debug=False, nnc=False, category=False):
                 ss_a0_C_s = ss_a0_C[ss_id]
                 ss_ab_C_s = ss_ab_C[ss_id]
 
-            for i_pt in range(start[i_scale], nb[i_scale]+start[i_scale]):
+            for i_pt in tqdm(range(start[i_scale], nb[i_scale]+start[i_scale])):
                 n = 0
                 neigh_nn = np.zeros((params.neigh.nb, 1)) + np.nan
                 if params.ndim == 1:
@@ -361,6 +374,8 @@ def sgs_trad(params: Params, debug=False, nnc=False, category=False):
                 if n == 0:
                     Res = Res.flatten()
                     Res[path[i_pt]] = U[i_pt]*np.sum([params.covar.c0])
+                    if category:
+                        Res[path[i_pt]] = cont_to_indicator(Res[path[i_pt]])
                     NEIGH = []
                 else:
                     if params.ndim == 2:
@@ -376,68 +391,54 @@ def sgs_trad(params: Params, debug=False, nnc=False, category=False):
 
                         if ab_C.ndim == 1:
                             ab_C = [ab_C]
-
-                        LAMBDA = np.linalg.lstsq(ab_C, a0_C, rcond=None)[0]
-                        S = np.sum([params.covar.c0]) - np.matmul(np.transpose(LAMBDA), a0_C)
-                        # print(S)
-
-                        if params.ndim == 1:
-                            NEIGH = NEIGH_1
-                        if params.ndim == 2:
-                            NEIGH = NEIGH_1 + (NEIGH_2 - 1) * params.ny
-                        if params.ndim == 3:
-                            NEIGH = NEIGH_1 + ((NEIGH_2 - 1) * params.ny + (NEIGH_3 - 1) - 1) * params.nz
-                        NEIGH = NEIGH[:n].flatten()
-                        right = []
-                        Res = Res.flatten()
-                        for el in NEIGH:
-                            right.append(Res[int(el) - 1])
-
-                        if params.calc_frob:
-                            LambdaM[path[i_pt], neigh_id, i_real] = LAMBDA / sqrt(S)
-                            LambdaM[path[i_pt], path[i_pt], i_real] = -1 / sqrt(S)
-                        Res[path[i_pt]] = np.matmul(np.transpose(LAMBDA), right) + U[i_pt] * sqrt(S)
                     else:
-                        # left = np.array([0, 0, 0])
-                        # neigh_nn = neigh_nn[~np.isnan(neigh_nn)]
-                        # for idn in neigh_nn:
-                        #     left = np.vstack((left, ss_XY_s[int(idn)]))
-                        #
-                        # D = pdist(np.matmul(left, params.covar.cx))
-                        # C = params.covar.g(D)
-                        #
-                        # if n == 1:
-                        #     a0_C = C
-                        #     ab_C = [[1]]
-                        # else:
-                        #     a0_C = np.transpose(C[:n])
-                        #     ab_C = np.diag(np.ones(n))*0.5
-                        #     low_t = np.tril(np.ones((n, n)), -1)
-                        #     n_next = n
-                        #     for j in range(np.shape(low_t)[0]):
-                        #         for i in range(np.shape(low_t)[1]):
-                        #             if low_t[i, j] == 1:
-                        #                 low_t[i, j] = C[n_next]
-                        #                 n_next += 1
-                        #     ab_C += low_t
-                        #     ab_C += np.transpose(ab_C)
-
+                        left = np.zeros(params.ndim)
                         neigh_nn = neigh_nn[~np.isnan(neigh_nn)]
-                        #print(neigh_nn)
-                        data = np.zeros((len(neigh_nn), 3))
-                        if params.ndim == 1:
-                            Res = Res.reshape((params.nx))
-                        if params.ndim == 2:
-                            Res = Res.reshape((params.nx, params.ny))
-                        if params.ndim == 3:
-                            Res = Res.reshape((params.nx, params.ny, params.nz))
-                        for idn in range(len(neigh_nn)):
-                            s_pt = XY_i[i_pt] + ss_XY_s[int(neigh_nn[int(idn)])]
-                            data[idn] = [s_pt[0], s_pt[1], Res[int(s_pt[0]), int(s_pt[1])]]
-                        S = simple_kriging(data, params, XY_i[i_pt])
-                        Res = Res.flatten()
+                        for idn in neigh_nn:
+                            left = np.vstack((left, ss_XY_s[int(idn)]))
 
-                        #Res[path[i_pt]] =
+                        D = pdist(np.matmul(left, params.covar.cx))
+                        C = params.covar.g(D)
+
+                        if n == 1:
+                            a0_C = C
+                            ab_C = [[1]]
+                        else:
+                            a0_C = np.transpose(C[:n])
+                            ab_C = np.diag(np.ones(n))*0.5
+                            low_t = np.tril(np.ones((n, n)), -1)
+                            n_next = n
+                            for j in range(np.shape(low_t)[0]):
+                                for i in range(np.shape(low_t)[1]):
+                                    if low_t[i, j] == 1:
+                                        low_t[i, j] = C[n_next]
+                                        n_next += 1
+                            ab_C += low_t
+                            ab_C += np.transpose(ab_C)
+
+                    LAMBDA = np.linalg.lstsq(ab_C, a0_C, rcond=None)[0]
+                    S = np.sum([params.covar.c0]) - np.matmul(np.transpose(LAMBDA), a0_C)
+                    #S = max(S, 0.0)
+                    # print(S)
+
+                    if params.ndim == 1:
+                        NEIGH = NEIGH_1
+                    if params.ndim == 2:
+                        NEIGH = NEIGH_1 + (NEIGH_2 - 1) * params.ny
+                    if params.ndim == 3:
+                        NEIGH = NEIGH_1 + ((NEIGH_2 - 1) * params.ny + (NEIGH_3 - 1) - 1) * params.nz
+                    NEIGH = NEIGH[:n].flatten()
+                    right = []
+                    Res = Res.flatten()
+                    for el in NEIGH:
+                        right.append(Res[int(el) - 1])
+
+                    if params.calc_frob:
+                        LambdaM[path[i_pt], neigh_id, i_real] = LAMBDA / sqrt(S)
+                        LambdaM[path[i_pt], path[i_pt], i_real] = -1 / sqrt(S)
+                    Res[path[i_pt]] = np.matmul(np.transpose(LAMBDA), right) + U[i_pt] * sqrt(S)
+                    if category:
+                        Res[path[i_pt]] = cont_to_indicator(Res[path[i_pt]])
 
         if params.ndim == 1:
             Res = Res.reshape((params.nx))
@@ -450,13 +451,32 @@ def sgs_trad(params: Params, debug=False, nnc=False, category=False):
             CY[:, :, i_real] = np.linalg.lstsq(csr_matrix(LambdaM[:, :, i_real]).toarray(),
                                      np.transpose(np.linalg.pinv(csr_matrix(LambdaM[:, :, i_real]).toarray())),
                          rcond=None)[0]
-        Rest[:, :, i_real] = Res
+
+
+
+        if params.ndim == 1:
+            Rest[:, i_real] = Res
+        elif params.ndim == 2:
+            Rest[:, :, i_real] = Res
+        elif params.ndim == 3:
+            Rest[:, :, :, i_real] = Res
+        else:
+            raise ValueError('Only works in 1, 2 or 3D')
 
     Rest = np.transpose(Rest, (1, 0, 2))
+    for m in range(np.shape(Rest)[-1]):
+        if params.ndim == 1:
+            Rest_means[m] = np.mean(Rest[:, m])
+            Rest_std[m] = np.std(Rest[:, m])
+        elif params.ndim == 2:
+            Rest_means[m] = np.mean(Rest[:, :, m])
+            Rest_std[m] = np.std(Rest[:, :, m])
+        elif params.ndim == 3:
+            Rest_means[m] = np.mean(Rest[:, :, :, m])
+            Rest_std[m] = np.std(Rest[:, :, :, m])
+        else:
+            raise ValueError('Only works in 1, 2 or 3D')
 
-    for m in range(np.shape(Rest)[2]):
-        Rest_means[m] = np.mean(Rest[:, :, m])
-        Rest_std[m] = np.std(Rest[:, :, m])
     if not category:
         Rest = Rest + params.mean
         Rest_means = Rest_means + params.mean

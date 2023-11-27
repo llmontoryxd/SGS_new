@@ -4,7 +4,7 @@ from utilities import pairwise
 from models import Params
 
 
-def kmatrices(data, covfct, u, N=0, max_dist=4):
+def kmatrices(params: Params, data, covfct, u, N=0, max_dist=4):
     '''
     Input  (data)  ndarray, data
            (model) modeling function
@@ -20,21 +20,22 @@ def kmatrices(data, covfct, u, N=0, max_dist=4):
     if np.ndim(u) == 1:
         u = [u]
     # distance between u and each data point in P
-    d = cdist(data[:, :2], u)
+    d = cdist(data[:, :params.ndim], u)
     # add these distances to P
     P = np.hstack((data, d))
     # if N>0, take the N closest points,
     if N > 0:
         P = P[d[:, 0].argsort()[:N]]
-    # otherwise, use all of the points
     else:
         N = len(P)
+
+    #print(np.shape(P))
 
     if P.min() > max_dist:
         return None, None, None
 
     # apply the covariance model to the distances
-    k = covfct(P[:, 3])
+    k = covfct(P[:, params.ndim+1])
     # check for nan values in k
     if np.any(np.isnan(k)):
         raise ValueError('The vector of covariances, k, contains NaN values')
@@ -42,7 +43,7 @@ def kmatrices(data, covfct, u, N=0, max_dist=4):
     k = np.matrix(k).T
 
     # form a matrix of distances between existing data points
-    K = pairwise(P[:, :2])
+    K = pairwise(P[:, :params.ndim])
     # apply the covariance model to these distances
     K = covfct(K.ravel())
     # check for nan values in K
@@ -51,7 +52,7 @@ def kmatrices(data, covfct, u, N=0, max_dist=4):
     # re-cast as a NumPy array -- thanks M.L.
     K = np.array(K)
     # reshape into an array
-    K = K.reshape(N, N)
+    K = K.reshape(np.shape(P)[0], np.shape(P)[0])
     # cast as a matrix
     K = np.matrix(K)
 
@@ -61,7 +62,7 @@ def kmatrices(data, covfct, u, N=0, max_dist=4):
 def simple(params: Params, data, covfct, u, N=0, nugget=0, max_dist=4):
     # calculate the matrices K, and k
     data_arr = np.array(data)
-    K, k, P = kmatrices(data_arr, covfct, u, N, max_dist)
+    K, k, P = kmatrices(params, data_arr, covfct, u, N, max_dist)
     if K is None:
         return None, None
 
@@ -74,7 +75,8 @@ def simple(params: Params, data, covfct, u, N=0, nugget=0, max_dist=4):
     kvar = k.T * weights
 
     # mean of the variable
-    mu = np.mean(data_arr[:, 2])
+    #mu = np.mean(data_arr[:, 2])
+    mu = params.mean
 
     # calculate the residuals
     residuals = P[:, 2] - mu

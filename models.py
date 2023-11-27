@@ -12,6 +12,7 @@ class Config:
     azimuth: list
     c0: float
     alpha: float
+    nugget: float
     wradius: int
     lookup: bool
     nb: int
@@ -22,13 +23,13 @@ class Config:
     mean: float
     nnc: bool
     category: bool
-    cat_threshold: float
+    cat_threshold: float | list[float]
     debug: bool
     calc_frob: bool
     seed_search: str | None
     seed_path: str | None
     seed_U: str | None
-    cutoff: float
+    cutoff: float | None
     bins: int
     show: bool
     save: bool
@@ -65,6 +66,8 @@ class Config:
                         self.c0 = float(content[1])
                     case 'alpha':
                         self.alpha = float(content[1])
+                    case 'nugget':
+                        self.nugget = float(content[1])
                     case 'wradius':
                         self.wradius = int(content[1])
                     case 'lookup':
@@ -89,7 +92,11 @@ class Config:
                         if len(content) == 1:
                             self.cat_threshold = 0
                         else:
-                            self.cat_threshold = float(content[1])
+                            self.cat_threshold = []
+                            for i_cat in range(1, len(content)):
+                                self.cat_threshold.append(float(content[i_cat]))
+                            if len(self.cat_threshold) == 1:
+                                self.cat_threshold = self.cat_threshold[0]
                     case 'debug':
                         self.debug = bool(int(content[1]))
                     case 'calc_frob':
@@ -110,7 +117,10 @@ class Config:
                         else:
                             self.seed_U = content[1]
                     case 'cutoff':
-                        self.cutoff = float(content[1])
+                        if len(content) == 1:
+                            self.cutoff = None
+                        else:
+                            self.cutoff = float(content[1])
                     case 'bins':
                         self.bins = int(content[1])
                     case 'show':
@@ -140,7 +150,7 @@ class Params:
     neigh: Neigh
     nnc: bool
     category: bool
-    cat_threshold: float
+    cat_threshold: float | list[float]
     debug: bool
     calc_frob: bool
     seed_search: str | None
@@ -176,16 +186,18 @@ class Covar:
     c0: float
     cx: ArrayLike
     alpha: float
+    nugget: float
     intvario: list
     g: float
     models_list = ['gaussian', 'exponential', 'spherical', 'hyperbolic']
 
-    def __init__(self, model, range0, azimuth, c0, alpha):
+    def __init__(self, model, range0, azimuth, c0, alpha, nugget):
         self.model = model
         self.range0 = range0
         self.azimuth = azimuth
         self.c0 = c0
         self.alpha = alpha
+        self.nugget = nugget
         assert self.model in self.models_list
         match self.model:
             case 'gaussian':
@@ -204,6 +216,7 @@ class Covar:
                 raise ValueError('Your model is not supported yet')
 
         self.range = np.asarray(self.range0) * self.intvario[-1]
+        #self.range = np.asarray(self.range0)
 
         if len(self.range) == 1 or len(self.azimuth) == 0:
             self.cx = 1/np.diag([self.range[0]])
@@ -244,21 +257,30 @@ class Neigh:
 
 
 class Plot:
+    ndim: float
     cutoff: float
     bins: int
     show: bool
     save: bool
     show_NNC: bool
     mode: str | None
+    dist: str
+    cat_threshold: float
     savefilename: str
 
-    def __init__(self, cutoff, bins, show, save, show_NNC, mode, savefilename):
+    def __init__(self, ndim, cutoff, bins, show, save, show_NNC, mode, category, cat_threshold, savefilename):
+        self.ndim = ndim
         self.cutoff = cutoff
         self.bins = bins
         self.show = show
         self.save = save
         self.show_NNC = show_NNC
         self.mode = mode
+        if not category:
+            self.dist = 'gaussian'
+        else:
+            self.dist = 'category'
+        self.cat_threshold = cat_threshold
         self.savefilename = savefilename
 
 

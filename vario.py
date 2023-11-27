@@ -6,6 +6,8 @@ import scipy.stats as stats
 from typing import Callable
 from numpy.typing import ArrayLike
 
+import model
+
 
 def semi_variance(Rest):
     vals = Rest.flatten()
@@ -48,10 +50,13 @@ def vario(grid, Rest, covar, cut_off=100, bins=20):
     match covar.model:
         case 'gaussian':
             var: Callable[[ArrayLike], ArrayLike] = lambda h: covar.c0*(1 - np.exp(-h**2/covar.range[0]**2))
+            #var: Callable[[ArrayLike], ArrayLike] = lambda h: model.gaussian(h, covar.range0[0], covar.c0)
         case 'exponential':
             var: Callable[[ArrayLike], ArrayLike] = lambda h: covar.c0*(1 - np.exp(-h/covar.range[0]))
+            #var: Callable[[ArrayLike], ArrayLike] = lambda h: model.exponential(h, covar.range0[0], covar.c0)
         case 'spherical':
             var: Callable[[ArrayLike], ArrayLike] = lambda h: covar.c0*(3/2*np.minimum(h/covar.range[0], 1)-1/2*np.minimum(h/covar.range[0], 1)**3)
+            #var: Callable[[ArrayLike], ArrayLike] = lambda h: model.spherical(h, covar.range0[0], covar.c0)
         case _:
             raise ValueError('Your model is not supported yet')
 

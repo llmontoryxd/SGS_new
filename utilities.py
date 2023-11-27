@@ -5,17 +5,7 @@ from scipy.spatial.distance import pdist, squareform
 
 
 def pairwise( data ):
-    '''
-    Input:  (data) NumPy array where the first two columns
-                   are the spatial coordinates, x and y
-    '''
-    # determine the size of the data
-    npoints, cols = data.shape
-    # give a warning for large data sets
-    if npoints > 10000:
-        print("You have more than 10,000 data points, this might take a minute.")
-    # return the square distance matrix
-    return squareform( pdist( data[:,:2] ) )
+    return squareform( pdist( data ) )
 
 def readGeoEAS( fn ):
     '''

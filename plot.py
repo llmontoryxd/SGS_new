@@ -5,6 +5,7 @@ import numpy as np
 import time
 
 from tqdm import tqdm
+from mpl_toolkits import mplot3d
 
 from histo import histo, qq_plot, histo_U
 from vario import vario
@@ -43,12 +44,14 @@ def plot(Rest, means, std, grid, covar, m, err: None|list, U, plot_params: Plot)
                     m_now += 1
         else:
             for i in tqdm(range(rows)):
+
                 c = axs[i, 0].imshow(Rest[:, :, i])
                 plt.colorbar(c, ax=axs[i, 0])
                 title_str = f'mean = {means[i]}'
                 if err is not None:
                     title_str += f', err = {err[i]}'
                 axs[i, 0].set(xlabel='x', ylabel='y', title=title_str)
+
 
                 match plot_params.mode:
                     case 'histo':
@@ -59,7 +62,9 @@ def plot(Rest, means, std, grid, covar, m, err: None|list, U, plot_params: Plot)
                         axs[i, 1].set(xlabel='Values', ylabel='Density')
                         axs[i, 1].grid()
                     case 'qq':
-                        sorted_random_dist, norm_one_rest, lin_reg_func = qq_plot(Rest[:, :, i], means[i], std[i])
+                        sorted_random_dist, norm_one_rest, lin_reg_func = qq_plot(Rest[:, :, i], means[i], std[i],
+                                                                            dist=plot_params.dist,
+                                                                            cat_threshold=plot_params.cat_threshold)
                         axs[i, 1].plot(sorted_random_dist, norm_one_rest, color='red', linestyle='None', marker='o', markersize=2)
                         axs[i, 1].plot(sorted_random_dist, lin_reg_func, color='black', linestyle='--')
                         axs[i, 1].set(xlabel='Theoretical quantiles', ylabel='Sample quantiles')
@@ -85,7 +90,9 @@ def plot(Rest, means, std, grid, covar, m, err: None|list, U, plot_params: Plot)
                         axs[i, 1].set(xlabel='Values', ylabel='Density')
                         axs[i, 1].grid()
 
-                        sorted_random_dist, norm_one_rest, lin_reg_func = qq_plot(Rest[:, :, i], means[i], std[i])
+                        sorted_random_dist, norm_one_rest, lin_reg_func = qq_plot(Rest[:, :, i], means[i], std[i],
+                                                                                  dist=plot_params.dist,
+                                                                                  cat_threshold=plot_params.cat_threshold)
                         axs[i, 2].plot(sorted_random_dist, norm_one_rest, color='red', linestyle='None', marker='o',
                                markersize=2)
                         axs[i, 2].plot(sorted_random_dist, lin_reg_func, color='black', linestyle='--')
@@ -93,9 +100,10 @@ def plot(Rest, means, std, grid, covar, m, err: None|list, U, plot_params: Plot)
 
                         bin_centers, bin_means, lag, initial_var = vario(grid, Rest[:, :, i], covar,
                                                                          plot_params.cutoff, plot_params.bins)
-                        axs[i, 3].plot(bin_centers, bin_means, linestyle='None', marker='o', color='red')
-                        axs[i, 3].plot(lag, initial_var, linestyle='None', marker='o', color='black', label='fit')
+                        axs[i, 3].plot(bin_centers, bin_means, linestyle='None', marker='o', color='red', label='exp')
+                        axs[i, 3].plot(lag, initial_var, linestyle='None', marker='o', color='black', label='init')
                         axs[i, 3].set(ylabel=r'$\gamma$', xlabel='lag distance')
+                        axs[i, 3].legend(loc='best')
                         axs[i, 3].grid()
 
 

@@ -1,28 +1,30 @@
 model gaussian
+ndim 2
 range 10 10
 azimuth 0
 c0 1
 alpha 1
-wradius 7
+nugget 0
+wradius 10
 lookup 1
 nb 40
 nx 100
 ny 100
-nz 
+nz 3
 m 1
 mean 0
-nnc 1
-category 0
-cat_threshold 
+nnc 0
+category 1
+cat_threshold 0.3
 debug 0
 calc_frob 0
 seed_search 
 seed_path 
 seed_U 
-cutoff 20
-bins 50
+cutoff 
+bins 100
 show 0
 save 1
 savefilename gen
 show_NNC 0
-mode all
+mode qq
